@@ -1,5 +1,7 @@
 # nvprof2json
 
+![nvprof2json in chrome://tracing](screenshot.png)
+
 Converter of nvvp profiler output (SQLite3 databases) to
 Google Trace Event Format, for use with about:tracing.
 Inspired by Andrew Tulloch and Nicolas Vasilache's gnvprof
