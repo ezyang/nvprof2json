@@ -212,4 +212,5 @@ def eprint(*args, **kwargs):
     """Print to stderr."""
     print(*args, file=sys.stderr, **kwargs)
 
-main()
+if __name__ == "__main__":
+    main()
