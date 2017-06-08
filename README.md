@@ -32,3 +32,9 @@ nvprof2json foo.nvvp > foo.json
   could.  If you have some info you need, look at some of the sample
   database row outputs and see which has the information you're looking
   for.
+
+* This Python script isn't written particularly efficiently.  Could be
+  made much faster!
+
+* The JSON output can become quite big.  Does chrome://tracing support
+  a binary format?  If so, we should use that.

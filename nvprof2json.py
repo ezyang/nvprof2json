@@ -51,6 +51,43 @@ def main():
                 }
         traceEvents.append(event)
 
+    # TODO DRIVER
+
+    """
+    _id_: 1
+    flags: 2
+    timestamp: 1496844806028263989
+    id: 1
+    objectKind: 2
+    objectId: b'\xe5\xc0\x16\x00@\xe7\x10J\x00\x00\x00\x00'
+    name: 3
+    domain: 0
+    """
+    for row in conn.execute("SELECT * FROM CUPTI_ACTIVITY_KIND_MARKER WHERE name != 0"):
+        #eprintRow(row)
+        # TODO: SO INEFFICIENT
+        end_row = conn.execute("SELECT * FROM CUPTI_ACTIVITY_KIND_MARKER WHERE id = ? AND name = 0", (row["id"],)).fetchone()
+        # TODO: support discrete events
+        event = {
+                "name": strings[row["name"]],
+                "ph": "X", # Complete Event (Begin + End event)
+                "cat": "cuda",
+                "ts": munge_time(row["timestamp"]),
+                "dur": munge_time(end_row["timestamp"] - row["timestamp"]),
+                # Weirdly, these don't seem to be associated with a
+                # CPU/GPU.  I guess there's no CUDA Context available
+                # when you run these, so it makes sense.  But nvvp
+                # associates these with a GPU strangely enough
+                "tid": "Markers and Ranges",
+                "pid": "Markers and Ranges",
+                # TODO: NO COLORS FOR YOU (probably have to parse
+                # objectId)
+                "args": {
+                    # TODO: More
+                    },
+                }
+        traceEvents.append(event)
+
     """
     _id_: 1
     copyKind: 1
@@ -100,7 +137,8 @@ def main():
                 "ts": munge_time(row["start"]),
                 "dur": munge_time(row["end"] - row["start"]),
                 "tid": "MemCpy ({})".format(copyKind),
-                # TODO: lookup GPU name
+                # TODO: lookup GPU name.  This is tored in
+                # CUPTI_ACTIVITY_KIND_DEVICE
                 "pid": "[{}:{}] Overview".format(row["deviceId"], row["contextId"]),
                 "args": {
                     "Size": sizeof_fmt(row["bytes"]),
@@ -216,6 +254,64 @@ def eprintRow(row):
 def eprint(*args, **kwargs):
     """Print to stderr."""
     print(*args, file=sys.stderr, **kwargs)
+
+def inspect_db(conn):
+    """Quickly dump data of all tables in database, with field names."""
+    tables = """
+CUPTI_ACTIVITY_KIND_BRANCH
+CUPTI_ACTIVITY_KIND_CDP_KERNEL
+CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL
+CUPTI_ACTIVITY_KIND_CONTEXT
+CUPTI_ACTIVITY_KIND_CUDA_EVENT
+CUPTI_ACTIVITY_KIND_DEVICE
+CUPTI_ACTIVITY_KIND_DEVICE_ATTRIBUTE
+CUPTI_ACTIVITY_KIND_DRIVER
+CUPTI_ACTIVITY_KIND_ENVIRONMENT
+CUPTI_ACTIVITY_KIND_EVENT
+CUPTI_ACTIVITY_KIND_EVENT_INSTANCE
+CUPTI_ACTIVITY_KIND_EXTERNAL_CORRELATION
+CUPTI_ACTIVITY_KIND_FUNCTION
+CUPTI_ACTIVITY_KIND_GLOBAL_ACCESS
+CUPTI_ACTIVITY_KIND_INSTANTANEOUS_EVENT
+CUPTI_ACTIVITY_KIND_INSTANTANEOUS_EVENT_INSTANCE
+CUPTI_ACTIVITY_KIND_INSTANTANEOUS_METRIC
+CUPTI_ACTIVITY_KIND_INSTANTANEOUS_METRIC_INSTANCE
+CUPTI_ACTIVITY_KIND_INSTRUCTION_CORRELATION
+CUPTI_ACTIVITY_KIND_INSTRUCTION_EXECUTION
+CUPTI_ACTIVITY_KIND_KERNEL
+CUPTI_ACTIVITY_KIND_MARKER
+CUPTI_ACTIVITY_KIND_MARKER_DATA
+CUPTI_ACTIVITY_KIND_MEMCPY
+CUPTI_ACTIVITY_KIND_MEMCPY2
+CUPTI_ACTIVITY_KIND_MEMSET
+CUPTI_ACTIVITY_KIND_METRIC
+CUPTI_ACTIVITY_KIND_METRIC_INSTANCE
+CUPTI_ACTIVITY_KIND_MODULE
+CUPTI_ACTIVITY_KIND_NAME
+CUPTI_ACTIVITY_KIND_NVLINK
+CUPTI_ACTIVITY_KIND_OPENACC_DATA
+CUPTI_ACTIVITY_KIND_OPENACC_LAUNCH
+CUPTI_ACTIVITY_KIND_OPENACC_OTHER
+CUPTI_ACTIVITY_KIND_OVERHEAD
+CUPTI_ACTIVITY_KIND_PC_SAMPLING
+CUPTI_ACTIVITY_KIND_PC_SAMPLING_RECORD_INFO
+CUPTI_ACTIVITY_KIND_PREEMPTION
+CUPTI_ACTIVITY_KIND_RUNTIME
+CUPTI_ACTIVITY_KIND_SHARED_ACCESS
+CUPTI_ACTIVITY_KIND_SOURCE_LOCATOR
+CUPTI_ACTIVITY_KIND_STREAM
+CUPTI_ACTIVITY_KIND_SYNCHRONIZATION
+CUPTI_ACTIVITY_KIND_UNIFIED_MEMORY_COUNTER
+""".strip().split("\n")
+
+    for t in tables:
+        eprint(t)
+        for r in conn.execute("SELECT * FROM {} LIMIT 4".format(t)):
+            eprintRow(r)
+        eprint("----")
+        eprint("----")
+        eprint("----")
+        eprint("----")
 
 if __name__ == "__main__":
     main()
