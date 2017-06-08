@@ -4,6 +4,7 @@ import json
 import subprocess
 import os
 import sys
+import copy
 
 def main():
     parser = argparse.ArgumentParser(description='Convert nvprof output to Google Event Trace compatible JSON.')
@@ -98,9 +99,9 @@ def main():
                 "cat": "cuda",
                 "ts": munge_time(row["start"]),
                 "dur": munge_time(row["end"] - row["start"]),
-                "tid": "Context {}: MemCpy ({})".format(row["contextId"], copyKind),
+                "tid": "MemCpy ({})".format(copyKind),
                 # TODO: lookup GPU name
-                "pid": "[{}] GPU".format(row["deviceId"]),
+                "pid": "[{}:{}] Overview".format(row["deviceId"], row["contextId"]),
                 "args": {
                     "Size": sizeof_fmt(row["bytes"]),
                     # TODO: More
@@ -146,16 +147,20 @@ def main():
                 "cat": "cuda",
                 "ts": munge_time(row["start"]),
                 "dur": munge_time(row["end"] - row["start"]),
-                "tid": "Context {}: Compute".format(row["contextId"]),
+                "tid": "Compute",
                 # TODO: lookup GPU name
-                "pid": "[{}] GPU".format(row["deviceId"]),
+                "pid": "[{}:{}] Overview".format(row["deviceId"], row["contextId"]),
                 "args": {
                     "Grid size": "[ {}, {}, {} ]".format(row["gridX"], row["gridY"], row["gridZ"]),
                     "Block size": "[ {}, {}, {} ]".format(row["blockX"], row["blockY"], row["blockZ"]),
                     # TODO: More
                     },
                 }
+        alt_event = copy.deepcopy(event)
+        alt_event["tid"] = alt_event["name"]
+        alt_event["pid"] = "[{}:{}] Compute".format(row["deviceId"], row["contextId"])
         traceEvents.append(event)
+        traceEvents.append(alt_event)
 
 
     json.dump(traceEvents, sys.stdout)
