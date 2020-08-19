@@ -68,13 +68,10 @@ def main():
         #eprintRow(row)
         # TODO: SO INEFFICIENT
         end_row = conn.execute("SELECT * FROM CUPTI_ACTIVITY_KIND_MARKER WHERE id = ? AND name = 0", (row["id"],)).fetchone()
-        # TODO: support discrete events
         event = {
                 "name": strings[row["name"]],
-                "ph": "X", # Complete Event (Begin + End event)
                 "cat": "cuda",
                 "ts": munge_time(row["timestamp"]),
-                "dur": munge_time(end_row["timestamp"] - row["timestamp"]),
                 # Weirdly, these don't seem to be associated with a
                 # CPU/GPU.  I guess there's no CUDA Context available
                 # when you run these, so it makes sense.  But nvvp
@@ -87,6 +84,11 @@ def main():
                     # TODO: More
                     },
                 }
+        if end_row is None:
+            event["ph"] = "I"
+        else:
+            event["ph"] = "X"
+            event["dur"] = munge_time(end_row["timestamp"] - row["timestamp"])
         traceEvents.append(event)
 
     """
