@@ -64,14 +64,22 @@ def main():
     name: 3
     domain: 0
     """
-    for row in conn.execute("SELECT * FROM CUPTI_ACTIVITY_KIND_MARKER WHERE name != 0"):
-        #eprintRow(row)
-        # TODO: SO INEFFICIENT
-        end_row = conn.execute("SELECT * FROM CUPTI_ACTIVITY_KIND_MARKER WHERE id = ? AND name = 0", (row["id"],)).fetchone()
+    for row in conn.execute(" ".join([
+            "SELECT",
+            ",".join([
+                "start.name AS name",
+                "start.timestamp AS start_time",
+                "end.timestamp AS end_time"
+            ]),
+            "FROM",
+            "(SELECT * FROM CUPTI_ACTIVITY_KIND_MARKER WHERE name != 0) AS start",
+            "LEFT JOIN",
+            "(SELECT * FROM CUPTI_ACTIVITY_KIND_MARKER WHERE name = 0) AS end",
+            "ON start.id = end.id"])):
         event = {
                 "name": strings[row["name"]],
                 "cat": "cuda",
-                "ts": munge_time(row["timestamp"]),
+                "ts": munge_time(row["start_time"]),
                 # Weirdly, these don't seem to be associated with a
                 # CPU/GPU.  I guess there's no CUDA Context available
                 # when you run these, so it makes sense.  But nvvp
@@ -84,11 +92,11 @@ def main():
                     # TODO: More
                     },
                 }
-        if end_row is None:
+        if row["end_time"] is None:
             event["ph"] = "I"
         else:
             event["ph"] = "X"
-            event["dur"] = munge_time(end_row["timestamp"] - row["timestamp"])
+            event["dur"] = munge_time(row["end_time"] - row["start_time"])
         traceEvents.append(event)
 
     """
